@@ -58,11 +58,18 @@ jobs:
 
       - name: 🔨 Build iOS app
         run: |
-          xcodebuild -workspace ios/iosnativeapp.xcworkspace \
-            -scheme iosnativeapp \
+          # Dynamically find the workspace and scheme name
+          WORKSPACE=$(find ios -name "*.xcworkspace" -maxdepth 1 | head -n 1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          
+          echo "Building workspace: $WORKSPACE"
+          echo "Using scheme: $SCHEME"
+          
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -destination generic/platform=iOS \
-            -archivePath ${{ github.workspace }}/build/iosnativeapp.xcarchive \
+            -archivePath ${{ github.workspace }}/build/app.xcarchive \
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -70,17 +77,23 @@ jobs:
 
       - name: 📦 Create IPA
         run: |
+          # Find the app name dynamically
+          APP_NAME=$(find build/app.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -n 1)
+          APP_BASENAME=$(basename "$APP_NAME")
+          
+          echo "Found app: $APP_BASENAME"
+          
           mkdir -p build/Payload
-          cp -r build/iosnativeapp.xcarchive/Products/Applications/iosnativeapp.app build/Payload/
+          cp -r "$APP_NAME" build/Payload/
           cd build
-          zip -r iosnativeapp.ipa Payload
+          zip -r app.ipa Payload
           cd ..
 
       - name: 📤 Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-unsigned
-          path: build/iosnativeapp.ipa
+          path: build/app.ipa
           retention-days: 30
 
       - name: ✅ Build complete
