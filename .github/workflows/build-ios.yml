@@ -1,0 +1,73 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Pozwala na ręczne uruchomienie z GitHub UI
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🍎 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: 📱 Generate native iOS project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 💎 Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: 🔨 Build iOS app
+        run: |
+          xcodebuild -workspace ios/iosnativeapp.xcworkspace \
+            -scheme iosnativeapp \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath ${{ github.workspace }}/build/iosnativeapp.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: 📦 Create IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/iosnativeapp.xcarchive/Products/Applications/iosnativeapp.app build/Payload/
+          cd build
+          zip -r iosnativeapp.ipa Payload
+          cd ..
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-unsigned
+          path: build/iosnativeapp.ipa
+          retention-days: 30
+
+      - name: ✅ Build complete
+        run: |
+          echo "🎉 IPA został zbudowany!"
+          echo "📱 Pobierz plik z zakładki Actions → Artifacts"
+          echo "🔧 Zainstaluj przez Sideloadly na swoim iPhone"
