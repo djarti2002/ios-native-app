@@ -1,17 +1,29 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView, Animated, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView, Animated, Alert, Dimensions } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as MediaLibrary from 'expo-media-library';
 import Slider from '@react-native-community/slider';
+import {
+  Grayscale,
+  Sepia,
+  ColorMatrix,
+  Saturate,
+  Brightness,
+  Contrast,
+  Temperature,
+} from 'react-native-image-filter-kit';
+
+const { width } = Dimensions.get('window');
 
 export default function App() {
   const [image, setImage] = useState(null);
-  const [editedImage, setEditedImage] = useState(null);
-  const [selectedFilter, setSelectedFilter] = useState(null);
+  const [selectedFilter, setSelectedFilter] = useState('Original');
   const [brightness, setBrightness] = useState(1);
   const [contrast, setContrast] = useState(1);
   const [saturation, setSaturation] = useState(1);
+  const [temperature, setTemperature] = useState(6500);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -23,14 +35,12 @@ export default function App() {
   }, []);
 
   const filters = [
-    { name: 'Original', icon: '📷', matrix: null },
-    { name: 'B&W', icon: '⚫', matrix: [0.299, 0.587, 0.114, 0, 0, 0.299, 0.587, 0.114, 0, 0, 0.299, 0.587, 0.114, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Sepia', icon: '🟤', matrix: [0.393, 0.769, 0.189, 0, 0, 0.349, 0.686, 0.168, 0, 0, 0.272, 0.534, 0.131, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Vintage', icon: '📜', matrix: [0.6, 0.3, 0.1, 0, 0, 0.2, 0.5, 0.3, 0, 0, 0.2, 0.3, 0.5, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Cool', icon: '❄️', matrix: [0.9, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1.1, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Warm', icon: '🔥', matrix: [1.1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Vibrant', icon: '🌈', matrix: [1.2, 0, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, 1, 0] },
-    { name: 'Fade', icon: '🌫️', matrix: [0.8, 0, 0, 0, 20, 0, 0.8, 0, 0, 20, 0, 0, 0.8, 0, 20, 0, 0, 0, 1, 0] },
+    { name: 'Original', icon: '📷' },
+    { name: 'B&W', icon: '⚫' },
+    { name: 'Sepia', icon: '🟤' },
+    { name: 'Cool', icon: '❄️' },
+    { name: 'Warm', icon: '🔥' },
+    { name: 'Vibrant', icon: '🌈' },
   ];
 
   const pickImage = async () => {
@@ -49,11 +59,11 @@ export default function App() {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
-      setEditedImage(result.assets[0].uri);
-      setSelectedFilter(null);
+      setSelectedFilter('Original');
       setBrightness(1);
       setContrast(1);
       setSaturation(1);
+      setTemperature(6500);
     }
   };
 
@@ -72,97 +82,117 @@ export default function App() {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
-      setEditedImage(result.assets[0].uri);
-      setSelectedFilter(null);
+      setSelectedFilter('Original');
       setBrightness(1);
       setContrast(1);
       setSaturation(1);
-    }
-  };
-
-  const applyFilter = async (filter) => {
-    if (!image) return;
-
-    setSelectedFilter(filter.name);
-
-    try {
-      const actions = [];
-
-      if (filter.matrix) {
-        // Note: expo-image-manipulator doesn't support color matrix directly
-        // We'll use resize as a workaround and apply filters differently
-        actions.push({ resize: { width: 1000 } });
-      }
-
-      const result = await ImageManipulator.manipulateAsync(
-        image,
-        actions,
-        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-      );
-
-      setEditedImage(result.uri);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to apply filter');
-    }
-  };
-
-  const applyAdjustments = async () => {
-    if (!image) return;
-
-    try {
-      // Apply brightness, contrast, saturation adjustments
-      const result = await ImageManipulator.manipulateAsync(
-        image,
-        [{ resize: { width: 1000 } }],
-        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-      );
-
-      setEditedImage(result.uri);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to apply adjustments');
+      setTemperature(6500);
     }
   };
 
   const saveImage = async () => {
-    if (!editedImage) return;
+    if (!image) return;
 
-    Alert.alert(
-      'Save Image',
-      'Image editing complete! In a full version, this would save to your photo library.',
-      [{ text: 'OK' }]
-    );
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant photo library permissions to save images.');
+      return;
+    }
+
+    try {
+      await MediaLibrary.saveToLibraryAsync(image);
+      Alert.alert('Success!', 'Image saved to your photo library! 📸');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save image');
+    }
   };
 
   const rotateImage = async () => {
-    if (!editedImage) return;
+    if (!image) return;
 
     try {
       const result = await ImageManipulator.manipulateAsync(
-        editedImage,
+        image,
         [{ rotate: 90 }],
         { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      setEditedImage(result.uri);
+      setImage(result.uri);
     } catch (error) {
       Alert.alert('Error', 'Failed to rotate image');
     }
   };
 
   const flipImage = async () => {
-    if (!editedImage) return;
+    if (!image) return;
 
     try {
       const result = await ImageManipulator.manipulateAsync(
-        editedImage,
+        image,
         [{ flip: ImageManipulator.FlipType.Horizontal }],
         { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      setEditedImage(result.uri);
+      setImage(result.uri);
     } catch (error) {
       Alert.alert('Error', 'Failed to flip image');
     }
+  };
+
+  const resetAdjustments = () => {
+    setBrightness(1);
+    setContrast(1);
+    setSaturation(1);
+    setTemperature(6500);
+    setSelectedFilter('Original');
+  };
+
+  const renderFilteredImage = () => {
+    if (!image) return null;
+
+    let FilterComponent = null;
+    const imageProps = {
+      source: { uri: image },
+      style: styles.image,
+      resizeMode: 'contain',
+    };
+
+    // Apply selected filter
+    switch (selectedFilter) {
+      case 'B&W':
+        FilterComponent = <Grayscale {...imageProps} />;
+        break;
+      case 'Sepia':
+        FilterComponent = <Sepia {...imageProps} />;
+        break;
+      case 'Cool':
+        FilterComponent = <Temperature amount={9000} {...imageProps} />;
+        break;
+      case 'Warm':
+        FilterComponent = <Temperature amount={3500} {...imageProps} />;
+        break;
+      case 'Vibrant':
+        FilterComponent = <Saturate amount={2} {...imageProps} />;
+        break;
+      default:
+        FilterComponent = <Image {...imageProps} />;
+    }
+
+    // Apply adjustments on top of filter
+    if (brightness !== 1 || contrast !== 1 || saturation !== 1) {
+      return (
+        <Brightness amount={brightness}>
+          <Contrast amount={contrast}>
+            <Saturate amount={saturation}>
+              {FilterComponent}
+            </Saturate>
+          </Contrast>
+        </Brightness>
+      );
+    }
+
+    return FilterComponent;
   };
 
   return (
@@ -172,14 +202,14 @@ export default function App() {
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>📸 SnapEdit</Text>
-          <Text style={styles.subtitle}>Photo Editor with Filters</Text>
+          <Text style={styles.title}>📸 SnapEdit Pro</Text>
+          <Text style={styles.subtitle}>Advanced Photo Editor</Text>
         </View>
 
         {/* Image Display */}
         <View style={styles.imageContainer}>
-          {editedImage ? (
-            <Image source={{ uri: editedImage }} style={styles.image} resizeMode="contain" />
+          {image ? (
+            renderFilteredImage()
           ) : (
             <View style={styles.placeholder}>
               <Text style={styles.placeholderIcon}>📷</Text>
@@ -204,45 +234,57 @@ export default function App() {
 
         {/* Filters */}
         {image && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filtersContainer}
-            contentContainerStyle={styles.filtersContent}
-          >
-            {filters.map((filter, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.filterButton,
-                  selectedFilter === filter.name && styles.filterButtonActive
-                ]}
-                onPress={() => applyFilter(filter)}
-              >
-                <Text style={styles.filterIcon}>{filter.icon}</Text>
-                <Text style={[
-                  styles.filterName,
-                  selectedFilter === filter.name && styles.filterNameActive
-                ]}>
-                  {filter.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <>
+            <Text style={styles.sectionTitle}>🎨 Filters</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filtersContainer}
+              contentContainerStyle={styles.filtersContent}
+            >
+              {filters.map((filter, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.filterButton,
+                    selectedFilter === filter.name && styles.filterButtonActive
+                  ]}
+                  onPress={() => setSelectedFilter(filter.name)}
+                >
+                  <Text style={styles.filterIcon}>{filter.icon}</Text>
+                  <Text style={[
+                    styles.filterName,
+                    selectedFilter === filter.name && styles.filterNameActive
+                  ]}>
+                    {filter.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
         )}
 
         {/* Adjustments */}
         {image && (
           <View style={styles.adjustments}>
+            <View style={styles.adjustmentHeader}>
+              <Text style={styles.sectionTitle}>⚙️ Adjustments</Text>
+              <TouchableOpacity onPress={resetAdjustments}>
+                <Text style={styles.resetButton}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>☀️ Brightness</Text>
+              <View style={styles.sliderHeader}>
+                <Text style={styles.sliderLabel}>☀️ Brightness</Text>
+                <Text style={styles.sliderValue}>{brightness.toFixed(2)}</Text>
+              </View>
               <Slider
                 style={styles.slider}
                 minimumValue={0.5}
-                maximumValue={1.5}
+                maximumValue={2}
                 value={brightness}
                 onValueChange={setBrightness}
-                onSlidingComplete={applyAdjustments}
                 minimumTrackTintColor="#00d4ff"
                 maximumTrackTintColor="#2a2a3e"
                 thumbTintColor="#00d4ff"
@@ -250,14 +292,16 @@ export default function App() {
             </View>
 
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>🌓 Contrast</Text>
+              <View style={styles.sliderHeader}>
+                <Text style={styles.sliderLabel}>🌓 Contrast</Text>
+                <Text style={styles.sliderValue}>{contrast.toFixed(2)}</Text>
+              </View>
               <Slider
                 style={styles.slider}
                 minimumValue={0.5}
-                maximumValue={1.5}
+                maximumValue={2}
                 value={contrast}
                 onValueChange={setContrast}
-                onSlidingComplete={applyAdjustments}
                 minimumTrackTintColor="#00d4ff"
                 maximumTrackTintColor="#2a2a3e"
                 thumbTintColor="#00d4ff"
@@ -265,14 +309,16 @@ export default function App() {
             </View>
 
             <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>🌈 Saturation</Text>
+              <View style={styles.sliderHeader}>
+                <Text style={styles.sliderLabel}>🌈 Saturation</Text>
+                <Text style={styles.sliderValue}>{saturation.toFixed(2)}</Text>
+              </View>
               <Slider
                 style={styles.slider}
                 minimumValue={0}
-                maximumValue={2}
+                maximumValue={3}
                 value={saturation}
                 onValueChange={setSaturation}
-                onSlidingComplete={applyAdjustments}
                 minimumTrackTintColor="#00d4ff"
                 maximumTrackTintColor="#2a2a3e"
                 thumbTintColor="#00d4ff"
@@ -335,7 +381,7 @@ const styles = StyleSheet.create({
     color: '#8b8b9f',
   },
   imageContainer: {
-    height: 300,
+    height: 280,
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
@@ -395,6 +441,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
   filtersContainer: {
     maxHeight: 100,
     marginBottom: 20,
@@ -431,15 +484,36 @@ const styles = StyleSheet.create({
   },
   adjustments: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  adjustmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resetButton: {
+    color: '#00d4ff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   sliderContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  sliderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   sliderLabel: {
     fontSize: 14,
     color: '#ffffff',
-    marginBottom: 8,
+    fontWeight: '600',
+  },
+  sliderValue: {
+    fontSize: 12,
+    color: '#00d4ff',
     fontWeight: '600',
   },
   slider: {
