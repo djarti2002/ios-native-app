@@ -13,7 +13,16 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.maker.iosnativeapp",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch"
+        ],
+        "NSCameraUsageDescription": "This app uses the camera for taking photos.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,16 +33,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "25d3c35c-208f-4f4b-82b2-5caf5381e225"
+      }
     }
   }
-}
-    "web": {
-  "favicon": "./assets/favicon.png"
-},
-"extra": {
-  "eas": {
-    "projectId": "25d3c35c-208f-4f4b-82b2-5caf5381e225"
-  }
-}
-}
 }
