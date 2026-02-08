@@ -30,6 +30,23 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: 🎨 Generate default assets
+        run: |
+          # Create assets directory if it doesn't exist
+          mkdir -p assets
+          
+          # Generate a simple icon using ImageMagick (available on macOS runners)
+          # If ImageMagick is not available, create a placeholder
+          if command -v convert &> /dev/null; then
+            convert -size 1024x1024 xc:#00d4ff -gravity center -pointsize 200 -fill white -annotate +0+0 "📱" assets/icon.png
+            convert -size 1024x1024 xc:#0f0f23 -gravity center -pointsize 200 -fill "#00d4ff" -annotate +0+0 "📱" assets/splash-icon.png
+            convert -size 1024x1024 xc:#00d4ff -gravity center -pointsize 200 -fill white -annotate +0+0 "📱" assets/adaptive-icon.png
+            convert -size 16x16 xc:#00d4ff assets/favicon.png
+          else
+            # Fallback: download a simple placeholder or skip icons
+            echo "ImageMagick not available, using expo defaults"
+          fi
+
       - name: 📱 Generate native iOS project
         run: npx expo prebuild --platform ios --clean
 
