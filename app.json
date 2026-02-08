@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "ios-native-app",
-    "slug": "ios-native-app",
-    "version": "1.0.0",
+    "name": "SnapEdit",
+    "slug": "snapedit",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,14 +14,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.maker.iosnativeapp",
-      "buildNumber": "1.0.0",
+      "bundleIdentifier": "com.maker.snapedit",
+      "buildNumber": "2.0.0",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "fetch"
-        ],
-        "NSCameraUsageDescription": "This app uses the camera for taking photos.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photo library."
+        "NSCameraUsageDescription": "SnapEdit needs camera access to take photos for editing.",
+        "NSPhotoLibraryUsageDescription": "SnapEdit needs photo library access to select and save edited photos.",
+        "NSPhotoLibraryAddUsageDescription": "SnapEdit needs permission to save edited photos to your library."
       }
     },
     "android": {
